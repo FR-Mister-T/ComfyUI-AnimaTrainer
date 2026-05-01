@@ -1,8 +1,9 @@
 # ComfyUI Anima Trainer
 
-A modification and implementation of Anima model training using a recent version of sd-script (0.10.2) and existing ComfyUI Flux Trainer
-Be advised some part of the code have been modified mostly to run on my AMD Card.
-This whole project is done by a ignorant monkey (me) with an LLM. Your mileage may vary.
+A modification and implementation of Anima model training using a recent version of sd-script (0.10.2) and existing ComfyUI Flux Trainer from Kijai
+Be advised some part of the code have been modified mostly so it could run on my PC with an AMD Card.
+
+/!\ This whole project is done by a ignorant monkey (me) with an LLM. Your mileage may vary. /!\
 
 Some pieces of advice below:
 
