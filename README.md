@@ -12,6 +12,9 @@ Everything learned from real training runs on an AMD R9700 (gfx1201, 32GB VRAM) 
 ComfyUI-FluxTrainer. Updated as new runs complete.
 
 ---
+# Cheat sheet is visible here
+
+https://github.com/FR-Mister-T/ComfyUI-AnimaTrainer/blob/master/anima-cheatsheet.md
 
 ## System
 
@@ -23,7 +26,7 @@ ComfyUI-FluxTrainer. Updated as new runs complete.
 | PyTorch | 2.9.1+rocm7.2.1 |
 | ComfyUI venv | `/home/zeuss194/COMFY/ComfyUI/Comfyenv313/` |
 
-### Required env vars in `start_comfy.sh`
+### Required env vars in your starting script for comfyui `start_comfy.sh`
 
 ```bash
 export TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=0   # MUST be 0 — crashes gfx1201 at step ~123 otherwise
