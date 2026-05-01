@@ -16,6 +16,9 @@ ComfyUI-FluxTrainer. Updated as new runs complete.
 
 https://github.com/FR-Mister-T/ComfyUI-AnimaTrainer/blob/master/anima-cheatsheet.md
 
+# General parameters explaination
+https://github.com/FR-Mister-T/ComfyUI-AnimaTrainer/blob/master/readme-anima-param.md
+
 ## System
 
 | Component | Value |
