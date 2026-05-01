@@ -1,0 +1,991 @@
+{
+  "id": "anima-lora-train-v1",
+  "revision": 1,
+  "last_node_id": 11,
+  "last_link_id": 10,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "AnimaModelSelect",
+      "pos": [50, 50],
+      "size": [420, 160],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "lora_path",
+          "name": "lora_path",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "anima_models",
+          "name": "anima_models",
+          "type": "TRAIN_ANIMA_MODELS",
+          "slot_index": 0,
+          "links": [4]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "AnimaModelSelect",
+        "cnr_id": "comfyui-fluxtrainer",
+        "ver": "1.0.0"
+      },
+      "widgets_values": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": 2,
+      "type": "TrainDatasetGeneralConfig",
+      "pos": [-660, 50],
+      "size": [320, 202],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "color_aug",
+          "name": "color_aug",
+          "type": "BOOLEAN",
+          "widget": { "name": "color_aug" },
+          "link": null
+        },
+        {
+          "localized_name": "flip_aug",
+          "name": "flip_aug",
+          "type": "BOOLEAN",
+          "widget": { "name": "flip_aug" },
+          "link": null
+        },
+        {
+          "localized_name": "shuffle_caption",
+          "name": "shuffle_caption",
+          "type": "BOOLEAN",
+          "widget": { "name": "shuffle_caption" },
+          "link": null
+        },
+        {
+          "localized_name": "caption_dropout_rate",
+          "name": "caption_dropout_rate",
+          "type": "FLOAT",
+          "widget": { "name": "caption_dropout_rate" },
+          "link": null
+        },
+        {
+          "localized_name": "alpha_mask",
+          "name": "alpha_mask",
+          "type": "BOOLEAN",
+          "widget": { "name": "alpha_mask" },
+          "link": null
+        },
+        {
+          "localized_name": "reset_on_queue",
+          "name": "reset_on_queue",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": { "name": "reset_on_queue" },
+          "link": null
+        },
+        {
+          "localized_name": "caption_extension",
+          "name": "caption_extension",
+          "shape": 7,
+          "type": "STRING",
+          "widget": { "name": "caption_extension" },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "dataset_general",
+          "name": "dataset_general",
+          "type": "JSON",
+          "slot_index": 0,
+          "links": [1]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "TrainDatasetGeneralConfig",
+        "cnr_id": "comfyui-fluxtrainer",
+        "ver": "1.0.0"
+      },
+      "widgets_values": [false, false, false, 0.05, false, false, ".txt"]
+    },
+    {
+      "id": 3,
+      "type": "TrainDatasetAdd",
+      "pos": [-290, 50],
+      "size": [270, 354],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "dataset_config",
+          "name": "dataset_config",
+          "type": "JSON",
+          "link": 1
+        },
+        {
+          "localized_name": "regularization",
+          "name": "regularization",
+          "shape": 7,
+          "type": "JSON",
+          "link": null
+        },
+        {
+          "localized_name": "width",
+          "name": "width",
+          "type": "INT",
+          "widget": { "name": "width" },
+          "link": null
+        },
+        {
+          "localized_name": "height",
+          "name": "height",
+          "type": "INT",
+          "widget": { "name": "height" },
+          "link": null
+        },
+        {
+          "localized_name": "batch_size",
+          "name": "batch_size",
+          "type": "INT",
+          "widget": { "name": "batch_size" },
+          "link": null
+        },
+        {
+          "localized_name": "dataset_path",
+          "name": "dataset_path",
+          "type": "STRING",
+          "widget": { "name": "dataset_path" },
+          "link": null
+        },
+        {
+          "localized_name": "class_tokens",
+          "name": "class_tokens",
+          "type": "STRING",
+          "widget": { "name": "class_tokens" },
+          "link": null
+        },
+        {
+          "localized_name": "enable_bucket",
+          "name": "enable_bucket",
+          "type": "BOOLEAN",
+          "widget": { "name": "enable_bucket" },
+          "link": null
+        },
+        {
+          "localized_name": "bucket_no_upscale",
+          "name": "bucket_no_upscale",
+          "type": "BOOLEAN",
+          "widget": { "name": "bucket_no_upscale" },
+          "link": null
+        },
+        {
+          "localized_name": "num_repeats",
+          "name": "num_repeats",
+          "type": "INT",
+          "widget": { "name": "num_repeats" },
+          "link": null
+        },
+        {
+          "localized_name": "min_bucket_reso",
+          "name": "min_bucket_reso",
+          "type": "INT",
+          "widget": { "name": "min_bucket_reso" },
+          "link": null
+        },
+        {
+          "localized_name": "max_bucket_reso",
+          "name": "max_bucket_reso",
+          "type": "INT",
+          "widget": { "name": "max_bucket_reso" },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "dataset",
+          "name": "dataset",
+          "type": "JSON",
+          "slot_index": 0,
+          "links": [2]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "TrainDatasetAdd",
+        "cnr_id": "comfyui-fluxtrainer",
+        "ver": "1.0.0"
+      },
+      "widgets_values": [512, 512, 1, "/path/to/your/dataset", "", true, true, 1, 256, 1024]
+    },
+    {
+      "id": 4,
+      "type": "OptimizerConfigProdigyPlusScheduleFree",
+      "pos": [50, 280],
+      "size": [504, 472],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "min_snr_gamma",
+          "name": "min_snr_gamma",
+          "type": "FLOAT",
+          "widget": { "name": "min_snr_gamma" },
+          "link": null
+        },
+        {
+          "localized_name": "lr_scheduler",
+          "name": "lr_scheduler",
+          "type": "COMBO",
+          "widget": { "name": "lr_scheduler" },
+          "link": null
+        },
+        {
+          "localized_name": "lr_scheduler_power",
+          "name": "lr_scheduler_power",
+          "type": "FLOAT",
+          "widget": { "name": "lr_scheduler_power" },
+          "link": null
+        },
+        {
+          "localized_name": "lr_scheduler_num_cycles",
+          "name": "lr_scheduler_num_cycles",
+          "type": "INT",
+          "widget": { "name": "lr_scheduler_num_cycles" },
+          "link": null
+        },
+        {
+          "localized_name": "prodigy_steps",
+          "name": "prodigy_steps",
+          "type": "INT",
+          "widget": { "name": "prodigy_steps" },
+          "link": null
+        },
+        {
+          "localized_name": "d0",
+          "name": "d0",
+          "type": "FLOAT",
+          "widget": { "name": "d0" },
+          "link": null
+        },
+        {
+          "localized_name": "d_coef",
+          "name": "d_coef",
+          "type": "FLOAT",
+          "widget": { "name": "d_coef" },
+          "link": null
+        },
+        {
+          "localized_name": "split_groups",
+          "name": "split_groups",
+          "type": "BOOLEAN",
+          "widget": { "name": "split_groups" },
+          "link": null
+        },
+        {
+          "localized_name": "use_bias_correction",
+          "name": "use_bias_correction",
+          "type": "BOOLEAN",
+          "widget": { "name": "use_bias_correction" },
+          "link": null
+        },
+        {
+          "localized_name": "use_stableadamw",
+          "name": "use_stableadamw",
+          "type": "BOOLEAN",
+          "widget": { "name": "use_stableadamw" },
+          "link": null
+        },
+        {
+          "localized_name": "stochastic_rounding",
+          "name": "stochastic_rounding",
+          "type": "BOOLEAN",
+          "widget": { "name": "stochastic_rounding" },
+          "link": null
+        },
+        {
+          "localized_name": "use_grams",
+          "name": "use_grams",
+          "type": "BOOLEAN",
+          "widget": { "name": "use_grams" },
+          "link": null
+        },
+        {
+          "localized_name": "use_adopt",
+          "name": "use_adopt",
+          "type": "BOOLEAN",
+          "widget": { "name": "use_adopt" },
+          "link": null
+        },
+        {
+          "localized_name": "use_orthograd",
+          "name": "use_orthograd",
+          "type": "BOOLEAN",
+          "widget": { "name": "use_orthograd" },
+          "link": null
+        },
+        {
+          "localized_name": "use_focus",
+          "name": "use_focus",
+          "type": "BOOLEAN",
+          "widget": { "name": "use_focus" },
+          "link": null
+        },
+        {
+          "localized_name": "use_speed",
+          "name": "use_speed",
+          "type": "BOOLEAN",
+          "widget": { "name": "use_speed" },
+          "link": null
+        },
+        {
+          "localized_name": "extra_optimizer_args",
+          "name": "extra_optimizer_args",
+          "type": "STRING",
+          "widget": { "name": "extra_optimizer_args" },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "optimizer_settings",
+          "name": "optimizer_settings",
+          "type": "ARGS",
+          "slot_index": 0,
+          "links": [3]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "OptimizerConfigProdigyPlusScheduleFree",
+        "cnr_id": "comfyui-fluxtrainer",
+        "ver": "1.0.0"
+      },
+      "widgets_values": [0, "schedulefree", 1, 1, 0, 1e-06, 1.2, 5, true, true, true, false, false, true, false, false, ""]
+    },
+    {
+      "id": 5,
+      "type": "AnimaTrainValidationSettings",
+      "pos": [50, 810],
+      "size": [378, 202],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": { "name": "steps" },
+          "link": null
+        },
+        {
+          "localized_name": "width",
+          "name": "width",
+          "type": "INT",
+          "widget": { "name": "width" },
+          "link": null
+        },
+        {
+          "localized_name": "height",
+          "name": "height",
+          "type": "INT",
+          "widget": { "name": "height" },
+          "link": null
+        },
+        {
+          "localized_name": "guidance_scale",
+          "name": "guidance_scale",
+          "type": "FLOAT",
+          "widget": { "name": "guidance_scale" },
+          "link": null
+        },
+        {
+          "localized_name": "flow_shift",
+          "name": "flow_shift",
+          "type": "FLOAT",
+          "widget": { "name": "flow_shift" },
+          "link": null
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "type": "INT",
+          "widget": { "name": "seed" },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "validation_settings",
+          "name": "validation_settings",
+          "type": "VALSETTINGS",
+          "slot_index": 0,
+          "links": [5]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "AnimaTrainValidationSettings",
+        "cnr_id": "comfyui-fluxtrainer",
+        "ver": "1.0.0"
+      },
+      "widgets_values": [30, 512, 512, 7.5, 3.0, 42]
+    },
+    {
+      "id": 6,
+      "type": "InitAnimaLoRATraining",
+      "pos": [620, 50],
+      "size": [440, 900],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "anima_models",
+          "name": "anima_models",
+          "type": "TRAIN_ANIMA_MODELS",
+          "link": 4
+        },
+        {
+          "localized_name": "dataset",
+          "name": "dataset",
+          "type": "JSON",
+          "link": 2
+        },
+        {
+          "localized_name": "optimizer_settings",
+          "name": "optimizer_settings",
+          "type": "ARGS",
+          "link": 3
+        },
+        {
+          "localized_name": "output_name",
+          "name": "output_name",
+          "type": "STRING",
+          "widget": { "name": "output_name" },
+          "link": null
+        },
+        {
+          "localized_name": "output_dir",
+          "name": "output_dir",
+          "type": "STRING",
+          "widget": { "name": "output_dir" },
+          "link": null
+        },
+        {
+          "localized_name": "network_dim",
+          "name": "network_dim",
+          "type": "INT",
+          "widget": { "name": "network_dim" },
+          "link": null
+        },
+        {
+          "localized_name": "network_alpha",
+          "name": "network_alpha",
+          "type": "FLOAT",
+          "widget": { "name": "network_alpha" },
+          "link": null
+        },
+        {
+          "localized_name": "learning_rate",
+          "name": "learning_rate",
+          "type": "FLOAT",
+          "widget": { "name": "learning_rate" },
+          "link": null
+        },
+        {
+          "localized_name": "max_train_steps",
+          "name": "max_train_steps",
+          "type": "INT",
+          "widget": { "name": "max_train_steps" },
+          "link": null
+        },
+        {
+          "localized_name": "cache_latents",
+          "name": "cache_latents",
+          "type": "COMBO",
+          "widget": { "name": "cache_latents" },
+          "link": null
+        },
+        {
+          "localized_name": "cache_text_encoder_outputs",
+          "name": "cache_text_encoder_outputs",
+          "type": "COMBO",
+          "widget": { "name": "cache_text_encoder_outputs" },
+          "link": null
+        },
+        {
+          "localized_name": "blocks_to_swap",
+          "name": "blocks_to_swap",
+          "type": "INT",
+          "widget": { "name": "blocks_to_swap" },
+          "link": null
+        },
+        {
+          "localized_name": "weighting_scheme",
+          "name": "weighting_scheme",
+          "type": "COMBO",
+          "widget": { "name": "weighting_scheme" },
+          "link": null
+        },
+        {
+          "localized_name": "logit_mean",
+          "name": "logit_mean",
+          "type": "FLOAT",
+          "widget": { "name": "logit_mean" },
+          "link": null
+        },
+        {
+          "localized_name": "logit_std",
+          "name": "logit_std",
+          "type": "FLOAT",
+          "widget": { "name": "logit_std" },
+          "link": null
+        },
+        {
+          "localized_name": "mode_scale",
+          "name": "mode_scale",
+          "type": "FLOAT",
+          "widget": { "name": "mode_scale" },
+          "link": null
+        },
+        {
+          "localized_name": "timestep_sampling",
+          "name": "timestep_sampling",
+          "type": "COMBO",
+          "widget": { "name": "timestep_sampling" },
+          "link": null
+        },
+        {
+          "localized_name": "sigmoid_scale",
+          "name": "sigmoid_scale",
+          "type": "FLOAT",
+          "widget": { "name": "sigmoid_scale" },
+          "link": null
+        },
+        {
+          "localized_name": "discrete_flow_shift",
+          "name": "discrete_flow_shift",
+          "type": "FLOAT",
+          "widget": { "name": "discrete_flow_shift" },
+          "link": null
+        },
+        {
+          "localized_name": "highvram",
+          "name": "highvram",
+          "type": "BOOLEAN",
+          "widget": { "name": "highvram" },
+          "link": null
+        },
+        {
+          "localized_name": "gradient_dtype",
+          "name": "gradient_dtype",
+          "type": "COMBO",
+          "widget": { "name": "gradient_dtype" },
+          "link": null
+        },
+        {
+          "localized_name": "save_dtype",
+          "name": "save_dtype",
+          "type": "COMBO",
+          "widget": { "name": "save_dtype" },
+          "link": null
+        },
+        {
+          "localized_name": "attention_mode",
+          "name": "attention_mode",
+          "type": "COMBO",
+          "widget": { "name": "attention_mode" },
+          "link": null
+        },
+        {
+          "localized_name": "split_attn",
+          "name": "split_attn",
+          "type": "BOOLEAN",
+          "widget": { "name": "split_attn" },
+          "link": null
+        },
+        {
+          "localized_name": "sample_prompts",
+          "name": "sample_prompts",
+          "type": "STRING",
+          "widget": { "name": "sample_prompts" },
+          "link": null
+        },
+        {
+          "localized_name": "additional_args",
+          "name": "additional_args",
+          "shape": 7,
+          "type": "STRING",
+          "widget": { "name": "additional_args" },
+          "link": null
+        },
+        {
+          "localized_name": "resume_args",
+          "name": "resume_args",
+          "shape": 7,
+          "type": "ARGS",
+          "link": null
+        },
+        {
+          "localized_name": "gradient_checkpointing",
+          "name": "gradient_checkpointing",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": { "name": "gradient_checkpointing" },
+          "link": null
+        },
+        {
+          "localized_name": "loss_args",
+          "name": "loss_args",
+          "shape": 7,
+          "type": "ARGS",
+          "link": null
+        },
+        {
+          "localized_name": "llm_adapter_lr",
+          "name": "llm_adapter_lr",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": { "name": "llm_adapter_lr" },
+          "link": null
+        },
+        {
+          "localized_name": "self_attn_lr",
+          "name": "self_attn_lr",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": { "name": "self_attn_lr" },
+          "link": null
+        },
+        {
+          "localized_name": "cross_attn_lr",
+          "name": "cross_attn_lr",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": { "name": "cross_attn_lr" },
+          "link": null
+        },
+        {
+          "localized_name": "mlp_lr",
+          "name": "mlp_lr",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": { "name": "mlp_lr" },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "network_trainer",
+          "name": "network_trainer",
+          "type": "NETWORKTRAINER",
+          "slot_index": 0,
+          "links": [6]
+        },
+        {
+          "localized_name": "epochs_count",
+          "name": "epochs_count",
+          "type": "INT",
+          "links": []
+        },
+        {
+          "localized_name": "args",
+          "name": "args",
+          "type": "KOHYA_ARGS",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "InitAnimaLoRATraining",
+        "cnr_id": "comfyui-fluxtrainer",
+        "ver": "1.0.0"
+      },
+      "widgets_values": [
+        "anima_lora_v1",
+        "anima_trainer_output",
+        16,
+        1.0,
+        0.0001,
+        1500,
+        "disk",
+        "disk",
+        0,
+        "logit_normal",
+        0.0,
+        1.0,
+        1.29,
+        "sigmoid",
+        1.0,
+        1.0,
+        false,
+        "fp32",
+        "bf16",
+        "torch",
+        false,
+        "illustration of a kitten | photograph of a turtle",
+        "",
+        "enabled",
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": 7,
+      "type": "AnimaTrainLoop",
+      "pos": [1120, 50],
+      "size": [393, 78],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "network_trainer",
+          "name": "network_trainer",
+          "type": "NETWORKTRAINER",
+          "link": 6
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": { "name": "steps" },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "network_trainer",
+          "name": "network_trainer",
+          "type": "NETWORKTRAINER",
+          "slot_index": 0,
+          "links": [7]
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "AnimaTrainLoop",
+        "cnr_id": "comfyui-fluxtrainer",
+        "ver": "1.0.0"
+      },
+      "widgets_values": [1500],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 8,
+      "type": "AnimaTrainLoRASave",
+      "pos": [1570, 50],
+      "size": [393, 122],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "network_trainer",
+          "name": "network_trainer",
+          "type": "NETWORKTRAINER",
+          "link": 7
+        },
+        {
+          "localized_name": "save_state",
+          "name": "save_state",
+          "type": "BOOLEAN",
+          "widget": { "name": "save_state" },
+          "link": null
+        },
+        {
+          "localized_name": "copy_to_comfy_lora_folder",
+          "name": "copy_to_comfy_lora_folder",
+          "type": "BOOLEAN",
+          "widget": { "name": "copy_to_comfy_lora_folder" },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "network_trainer",
+          "name": "network_trainer",
+          "type": "NETWORKTRAINER",
+          "slot_index": 0,
+          "links": [8]
+        },
+        {
+          "localized_name": "lora_path",
+          "name": "lora_path",
+          "type": "STRING",
+          "links": []
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "AnimaTrainLoRASave",
+        "cnr_id": "comfyui-fluxtrainer",
+        "ver": "1.0.0"
+      },
+      "widgets_values": [false, false]
+    },
+    {
+      "id": 9,
+      "type": "AnimaTrainValidate",
+      "pos": [2020, 50],
+      "size": [470, 80],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "network_trainer",
+          "name": "network_trainer",
+          "type": "NETWORKTRAINER",
+          "link": 8
+        },
+        {
+          "localized_name": "validation_settings",
+          "name": "validation_settings",
+          "shape": 7,
+          "type": "VALSETTINGS",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "network_trainer",
+          "name": "network_trainer",
+          "type": "NETWORKTRAINER",
+          "slot_index": 0,
+          "links": [9]
+        },
+        {
+          "localized_name": "validation_images",
+          "name": "validation_images",
+          "type": "IMAGE",
+          "slot_index": 1,
+          "links": [10]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "AnimaTrainValidate",
+        "cnr_id": "comfyui-fluxtrainer",
+        "ver": "1.0.0"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 10,
+      "type": "AnimaTrainEnd",
+      "pos": [2560, 50],
+      "size": [393, 106],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "network_trainer",
+          "name": "network_trainer",
+          "type": "NETWORKTRAINER",
+          "link": 9
+        },
+        {
+          "localized_name": "save_state",
+          "name": "save_state",
+          "type": "BOOLEAN",
+          "widget": { "name": "save_state" },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "lora_name",
+          "name": "lora_name",
+          "type": "STRING",
+          "links": []
+        },
+        {
+          "localized_name": "metadata",
+          "name": "metadata",
+          "type": "STRING",
+          "links": []
+        },
+        {
+          "localized_name": "lora_path",
+          "name": "lora_path",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "AnimaTrainEnd",
+        "cnr_id": "comfyui-fluxtrainer",
+        "ver": "1.0.0"
+      },
+      "widgets_values": [true]
+    },
+    {
+      "id": 11,
+      "type": "PreviewImage",
+      "pos": [2020, 200],
+      "size": [470, 320],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 10
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    }
+  ],
+  "links": [
+    [1, 2, 0, 3, 0, "JSON"],
+    [2, 3, 0, 6, 1, "JSON"],
+    [3, 4, 0, 6, 2, "ARGS"],
+    [4, 1, 0, 6, 0, "TRAIN_ANIMA_MODELS"],
+    [5, 5, 0, 9, 1, "VALSETTINGS"],
+    [6, 6, 0, 7, 0, "NETWORKTRAINER"],
+    [7, 7, 0, 8, 0, "NETWORKTRAINER"],
+    [8, 8, 0, 9, 0, "NETWORKTRAINER"],
+    [9, 9, 0, 10, 0, "NETWORKTRAINER"],
+    [10, 9, 1, 11, 0, "IMAGE"]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.6,
+      "offset": [600, 300]
+    }
+  },
+  "version": 0.4
+}
