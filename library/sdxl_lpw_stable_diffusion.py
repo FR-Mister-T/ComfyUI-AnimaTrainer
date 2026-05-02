@@ -10,7 +10,7 @@ import PIL.Image
 import torch
 from packaging import version
 from tqdm import tqdm
-from transformers import CLIPFeatureExtractor, CLIPTextModel, CLIPTokenizer
+from transformers import CLIPImageProcessor, CLIPTextModel, CLIPTokenizer
 
 from diffusers import SchedulerMixin, StableDiffusionPipeline
 from diffusers.models import AutoencoderKL
@@ -75,7 +75,7 @@ re_attention = re.compile(
 
 
 def parse_prompt_attention(text):
-    """
+    r"""
     Parses a string with attention tokens and returns a list of pairs: text and its associated weight.
     Accepted tokens are:
       (abc) - increases attention to abc by a multiplier of 1.1
@@ -551,7 +551,7 @@ class SdxlStableDiffusionLongPromptWeightingPipeline:
         scheduler: SchedulerMixin,
         # clip_skip: int,
         safety_checker: StableDiffusionSafetyChecker,
-        feature_extractor: CLIPFeatureExtractor,
+        feature_extractor: CLIPImageProcessor,
         requires_safety_checker: bool = True,
         clip_skip: int = 1,
     ):
