@@ -1,4 +1,4 @@
-Edit 02/05/2026 => ComfyUI updated some commands that broke the nodes, I'm on it !
+Edit 02/05/2026 => ComfyUI updated some commands that broke the nodes, it should work now
 # ComfyUI Anima Trainer
 
 A modification and implementation of Anima model training using a recent version of sd-script (0.10.2) and existing ComfyUI Flux Trainer from Kijai.
