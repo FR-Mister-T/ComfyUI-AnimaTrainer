@@ -1,4 +1,5 @@
 Edit 10/05/2026 => implemented the last Anima feature from sd-script "control_net_lllite_anima"
+
 Edit 02/05/2026 => ComfyUI updated some commands that broke the nodes, it should work now
 # ComfyUI Anima Trainer
 
