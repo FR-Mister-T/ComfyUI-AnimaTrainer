@@ -12,6 +12,7 @@ import shlex
 script_directory = os.path.dirname(os.path.abspath(__file__))
 
 from .anima_train_network_comfy import AnimaNetworkTrainer
+from .anima_lllite_train_comfy import AnimaLLLiteTrainer
 from .library import anima_train_utils
 from .library.device_utils import init_ipex
 
@@ -668,6 +669,309 @@ class AnimaTrainValidate:
         return (trainer, image_tensors)
 
 
+class InitAnimaLLLiteTraining:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "anima_models": ("TRAIN_ANIMA_MODELS",),
+                "train_data_dir": ("STRING", {"default": "", "multiline": False, "tooltip": "Directory with training images"}),
+                "conditioning_data_dir": ("STRING", {"default": "", "multiline": False, "tooltip": "Directory with conditioning/control images (paired with train_data_dir)"}),
+                "optimizer_settings": ("ARGS",),
+                "output_name": ("STRING", {"default": "anima_lllite", "multiline": False}),
+                "output_dir": ("STRING", {"default": "anima_lllite_output", "multiline": False, "tooltip": "Output folder path (root is the ComfyUI folder)"}),
+                "max_train_steps": ("INT", {"default": 1500, "min": 1, "max": 100000, "step": 1}),
+                "cache_latents": (["disk", "memory", "disabled"],),
+                "cache_text_encoder_outputs": (["disk", "memory", "disabled"],),
+                "weighting_scheme": (["logit_normal", "sigma_sqrt", "mode", "cosmap", "none"],),
+                "timestep_sampling": (["sigmoid", "uniform", "sigma", "shift", "flux_shift"],),
+                "discrete_flow_shift": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.0001}),
+                "attention_mode": (["torch", "xformers", "flash", "sdpa"], {"default": "torch"}),
+                "save_dtype": (["fp32", "fp16", "bf16", "fp8_e4m3fn", "fp8_e5m2"], {"default": "bf16"}),
+                "gradient_dtype": (["fp32", "fp16", "bf16"], {"default": "fp32"}),
+                "cond_emb_dim": ("INT", {"default": 32, "min": 8, "max": 256, "step": 8, "tooltip": "Conditioning embedding dimension"}),
+                "lllite_mlp_dim": ("INT", {"default": 64, "min": 16, "max": 512, "step": 8, "tooltip": "LLLite MLP hidden dimension"}),
+                "lllite_target_layers": ("STRING", {"default": "self_attn_q", "multiline": False, "tooltip": "Target layers: preset name or comma-separated atomics (self_attn_q, self_attn_qkv, self_attn_qkv_cross_q)"}),
+                "lllite_cond_dim": ("INT", {"default": 64, "min": 16, "max": 256, "step": 8, "tooltip": "Conditioning trunk channel width"}),
+                "lllite_cond_resblocks": ("INT", {"default": 1, "min": 0, "max": 8, "step": 1, "tooltip": "Number of ResBlocks in conditioning trunk"}),
+                "lllite_multiplier": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 4.0, "step": 0.05, "tooltip": "Multiplier applied to LLLite output"}),
+                "lllite_use_aspp": ("BOOLEAN", {"default": False, "tooltip": "Enable ASPP (Atrous Spatial Pyramid Pooling) in conditioning trunk"}),
+                "sample_prompts": ("STRING", {"multiline": True, "default": "illustration of a kitten", "tooltip": "Validation prompts, separate with |"}),
+            },
+            "optional": {
+                "network_weights": ("STRING", {"default": "", "multiline": False, "tooltip": "Path to existing LLLite weights to resume from"}),
+                "lllite_dropout": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 0.9, "step": 0.05, "tooltip": "Dropout rate for LLLite mid output (0 = disabled)"}),
+                "gradient_checkpointing": (["enabled", "disabled"], {"default": "enabled"}),
+                "vae_chunk_size": ("INT", {"default": 0, "min": 0, "max": 1024, "step": 2, "tooltip": "VAE spatial chunk size for VRAM reduction (0=disabled)"}),
+                "additional_args": ("STRING", {"multiline": True, "default": "", "tooltip": "Additional CLI args passed to the training command"}),
+            },
+            "hidden": {
+                "prompt": "PROMPT",
+                "extra_pnginfo": "EXTRA_PNGINFO",
+            },
+        }
+
+    RETURN_TYPES = ("NETWORKTRAINER", "INT", "KOHYA_ARGS")
+    RETURN_NAMES = ("network_trainer", "epochs_count", "args")
+    FUNCTION = "init_training"
+    CATEGORY = "FluxTrainer/Anima"
+
+    def init_training(
+        self,
+        anima_models,
+        train_data_dir,
+        conditioning_data_dir,
+        optimizer_settings,
+        output_name,
+        output_dir,
+        max_train_steps,
+        cache_latents,
+        cache_text_encoder_outputs,
+        weighting_scheme,
+        timestep_sampling,
+        discrete_flow_shift,
+        attention_mode,
+        save_dtype,
+        gradient_dtype,
+        cond_emb_dim,
+        lllite_mlp_dim,
+        lllite_target_layers,
+        lllite_cond_dim,
+        lllite_cond_resblocks,
+        lllite_multiplier,
+        lllite_use_aspp,
+        sample_prompts,
+        network_weights="",
+        lllite_dropout=0.0,
+        gradient_checkpointing="enabled",
+        vae_chunk_size=0,
+        additional_args=None,
+        prompt=None,
+        extra_pnginfo=None,
+    ):
+        mm.soft_empty_cache()
+
+        output_dir = os.path.abspath(output_dir)
+        os.makedirs(output_dir, exist_ok=True)
+
+        total, used, free = shutil.disk_usage(output_dir)
+        if free <= 2 * (2**30):
+            raise ValueError(f"Insufficient disk space. Available: {free/2**30:.1f}GB")
+
+        from .anima_lllite_train_comfy import AnimaLLLiteTrainer
+        from .train_network import setup_parser as train_network_setup_parser
+
+        parser = train_network_setup_parser()
+        anima_train_utils.add_anima_training_arguments(parser)
+        parser.add_argument("--unsloth_offload_checkpointing", action="store_true")
+        parser.add_argument("--cond_emb_dim", type=int, default=32)
+        parser.add_argument("--lllite_mlp_dim", type=int, default=64)
+        parser.add_argument("--lllite_target_layers", type=str, default="self_attn_q")
+        parser.add_argument("--lllite_cond_dim", type=int, default=64)
+        parser.add_argument("--lllite_cond_resblocks", type=int, default=1)
+        parser.add_argument("--lllite_multiplier", type=float, default=1.0)
+        parser.add_argument("--lllite_use_aspp", action="store_true")
+        parser.add_argument("--lllite_dropout", type=float, default=None)
+        parser.add_argument("--conditioning_data_dir", type=str, default=None)
+        parser.add_argument("--skip_latents_validity_check", action="store_true")
+
+        if additional_args:
+            args, _ = parser.parse_known_args(args=shlex.split(additional_args))
+        else:
+            args, _ = parser.parse_known_args()
+
+        # Cache latents mapping
+        if cache_latents == "memory":
+            args.cache_latents = True
+            args.cache_latents_to_disk = False
+        elif cache_latents == "disk":
+            args.cache_latents = True
+            args.cache_latents_to_disk = True
+            args.caption_dropout_rate = 0.0
+            args.shuffle_caption = False
+            args.token_warmup_step = 0.0
+            args.caption_tag_dropout_rate = 0.0
+        else:
+            args.cache_latents = False
+            args.cache_latents_to_disk = False
+
+        # Cache text encoder outputs mapping
+        if cache_text_encoder_outputs == "memory":
+            args.cache_text_encoder_outputs = True
+            args.cache_text_encoder_outputs_to_disk = False
+        elif cache_text_encoder_outputs == "disk":
+            args.cache_text_encoder_outputs = True
+            args.cache_text_encoder_outputs_to_disk = True
+        else:
+            args.cache_text_encoder_outputs = False
+            args.cache_text_encoder_outputs_to_disk = False
+
+        prompts = sample_prompts.split("|") if "|" in sample_prompts else [sample_prompts]
+
+        gradient_dtype_settings = {
+            "fp16": {"full_fp16": True, "full_bf16": False, "mixed_precision": "fp16"},
+            "bf16": {"full_bf16": True, "full_fp16": False, "mixed_precision": "bf16"},
+        }
+
+        config = {
+            "sample_prompts": prompts,
+            "save_precision": save_dtype,
+            "mixed_precision": "bf16",
+            "num_cpu_threads_per_process": 1,
+            "pretrained_model_name_or_path": anima_models["dit"],
+            "qwen3": anima_models["qwen3"],
+            "vae": anima_models["vae"],
+            "t5_tokenizer_path": anima_models.get("t5_tokenizer_path"),
+            "llm_adapter_path": anima_models.get("llm_adapter_path"),
+            "save_model_as": "safetensors",
+            "persistent_data_loader_workers": False,
+            "max_data_loader_n_workers": 0,
+            "seed": 42,
+            "output_dir": output_dir,
+            "output_name": f"{output_name}_{save_dtype}",
+            "loss_type": "l2",
+            "network_train_unet_only": True,
+            "disable_mmap_load_safetensors": False,
+            "attn_mode": attention_mode,
+            "max_train_steps": max_train_steps,
+            "train_data_dir": train_data_dir,
+            "conditioning_data_dir": conditioning_data_dir,
+            "weighting_scheme": weighting_scheme,
+            "timestep_sampling": timestep_sampling,
+            "discrete_flow_shift": discrete_flow_shift,
+            "gradient_checkpointing": gradient_checkpointing == "enabled",
+            "cond_emb_dim": cond_emb_dim,
+            "lllite_mlp_dim": lllite_mlp_dim,
+            "lllite_target_layers": lllite_target_layers,
+            "lllite_cond_dim": lllite_cond_dim,
+            "lllite_cond_resblocks": lllite_cond_resblocks,
+            "lllite_multiplier": lllite_multiplier,
+            "lllite_use_aspp": lllite_use_aspp,
+            "lllite_dropout": lllite_dropout if lllite_dropout > 0.0 else None,
+            "skip_cache_check": False,
+            "skip_latents_validity_check": False,
+        }
+        config.update(gradient_dtype_settings.get(gradient_dtype, {}))
+
+        if network_weights:
+            config["network_weights"] = network_weights
+        if vae_chunk_size and vae_chunk_size > 0:
+            config["vae_chunk_size"] = vae_chunk_size
+
+        config.update(optimizer_settings)
+
+        for key, value in config.items():
+            setattr(args, key, value)
+
+        saved_args_file_path = os.path.join(output_dir, f"{output_name}_lllite_args.json")
+        with open(saved_args_file_path, "w") as f:
+            json.dump(vars(args), f, indent=4)
+
+        metadata = {}
+        if extra_pnginfo is not None:
+            metadata.update(extra_pnginfo.get("workflow", {}))
+
+        saved_workflow_file_path = os.path.join(output_dir, f"{output_name}_lllite_workflow.json")
+        with open(saved_workflow_file_path, "w") as f:
+            json.dump(metadata, f, indent=4)
+
+        with torch.inference_mode(False):
+            network_trainer = AnimaLLLiteTrainer()
+            training_loop = network_trainer.init_train(args)
+
+        epochs_count = network_trainer.num_train_epochs
+
+        trainer = {
+            "network_trainer": network_trainer,
+            "training_loop": training_loop,
+        }
+        return (trainer, epochs_count, args)
+
+
+class AnimaLLLiteTrainSave:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "network_trainer": ("NETWORKTRAINER",),
+                "save_state": ("BOOLEAN", {"default": False, "tooltip": "Also save the full training state (optimizer, scheduler)"}),
+                "copy_to_comfy_lora_folder": ("BOOLEAN", {"default": False, "tooltip": "Copy saved checkpoint to ComfyUI loras/anima_trainer/ folder"}),
+            },
+        }
+
+    RETURN_TYPES = ("NETWORKTRAINER", "STRING", "INT")
+    RETURN_NAMES = ("network_trainer", "lllite_path", "steps")
+    FUNCTION = "save"
+    CATEGORY = "FluxTrainer/Anima"
+
+    def save(self, network_trainer, save_state, copy_to_comfy_lora_folder):
+        with torch.inference_mode(False):
+            trainer = network_trainer["network_trainer"]
+            global_step = trainer.global_step
+
+            ckpt_name = train_util.get_step_ckpt_name(trainer.args, "." + trainer.args.save_model_as, global_step)
+            trainer.save_model(ckpt_name, global_step, trainer.current_epoch.value + 1)
+
+            remove_step_no = train_util.get_remove_step_no(trainer.args, global_step)
+            if remove_step_no is not None:
+                remove_ckpt_name = train_util.get_step_ckpt_name(trainer.args, "." + trainer.args.save_model_as, remove_step_no)
+                old_path = os.path.join(trainer.args.output_dir, remove_ckpt_name)
+                if os.path.exists(old_path):
+                    os.remove(old_path)
+
+            if save_state:
+                train_util.save_and_remove_state_stepwise(trainer.args, trainer.accelerator, global_step)
+
+            lllite_path = os.path.join(trainer.args.output_dir, ckpt_name)
+            if copy_to_comfy_lora_folder:
+                destination_dir = os.path.join(folder_paths.models_dir, "loras", "anima_trainer")
+                os.makedirs(destination_dir, exist_ok=True)
+                shutil.copy(lllite_path, os.path.join(destination_dir, ckpt_name))
+
+        return (network_trainer, lllite_path, global_step)
+
+
+class AnimaLLLiteTrainEnd:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "network_trainer": ("NETWORKTRAINER",),
+                "save_state": ("BOOLEAN", {"default": True, "tooltip": "Save full training state on finish"}),
+            },
+        }
+
+    RETURN_TYPES = ("STRING", "STRING", "STRING")
+    RETURN_NAMES = ("lllite_name", "metadata", "lllite_path")
+    FUNCTION = "endtrain"
+    CATEGORY = "FluxTrainer/Anima"
+    OUTPUT_NODE = True
+
+    def endtrain(self, network_trainer, save_state):
+        with torch.inference_mode(False):
+            training_loop = network_trainer["training_loop"]
+            network_trainer = network_trainer["network_trainer"]
+
+            network_trainer.accelerator.end_training()
+            network_trainer.optimizer_eval_fn()
+
+            if save_state:
+                train_util.save_state_on_train_end(network_trainer.args, network_trainer.accelerator)
+
+            ckpt_name = train_util.get_last_ckpt_name(network_trainer.args, "." + network_trainer.args.save_model_as)
+            network_trainer.save_model(ckpt_name, network_trainer.global_step, network_trainer.num_train_epochs)
+
+            final_name = str(network_trainer.args.output_name)
+            final_path = os.path.join(network_trainer.args.output_dir, ckpt_name)
+            metadata = json.dumps(network_trainer.metadata, indent=2)
+
+            training_loop = None
+            network_trainer = None
+            mm.soft_empty_cache()
+
+        return (final_name, metadata, final_path)
+
+
 NODE_CLASS_MAPPINGS = {
     "AnimaModelSelect": AnimaModelSelect,
     "InitAnimaLoRATraining": InitAnimaLoRATraining,
@@ -676,6 +980,9 @@ NODE_CLASS_MAPPINGS = {
     "AnimaTrainEnd": AnimaTrainEnd,
     "AnimaTrainValidationSettings": AnimaTrainValidationSettings,
     "AnimaTrainValidate": AnimaTrainValidate,
+    "InitAnimaLLLiteTraining": InitAnimaLLLiteTraining,
+    "AnimaLLLiteTrainSave": AnimaLLLiteTrainSave,
+    "AnimaLLLiteTrainEnd": AnimaLLLiteTrainEnd,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -686,4 +993,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "AnimaTrainEnd": "Anima Train End",
     "AnimaTrainValidationSettings": "Anima Train Validation Settings",
     "AnimaTrainValidate": "Anima Train Validate",
+    "InitAnimaLLLiteTraining": "Init Anima LLLite Training",
+    "AnimaLLLiteTrainSave": "Anima LLLite Train Save",
+    "AnimaLLLiteTrainEnd": "Anima LLLite Train End",
 }
