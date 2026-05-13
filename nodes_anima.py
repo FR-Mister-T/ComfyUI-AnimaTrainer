@@ -436,6 +436,25 @@ class InitAnimaLoRATraining:
             network_trainer = AnimaNetworkTrainer()
             training_loop = network_trainer.init_train(args)
 
+        datasets_meta = json.loads(network_trainer.metadata.get("ss_datasets", "[]"))
+        for ds_meta in datasets_meta:
+            ds_batch_size = ds_meta.get("batch_size_per_device", 1)
+            buckets = (ds_meta.get("bucket_info") or {}).get("buckets") or {}
+            for bkt in buckets.values():
+                count = bkt.get("count", 0)
+                if count < ds_batch_size:
+                    reso = bkt.get("resolution", ["?", "?"])
+                    logger.warning(
+                        f"Sparse bucket {reso[0]}x{reso[1]}: {count} images < batch_size {ds_batch_size}. "
+                        f"Noisy gradients expected — drop max_bucket_reso or add images at this aspect ratio."
+                    )
+
+        loss_csv_path = os.path.join(output_dir, f"{output_name}_loss.csv")
+        with open(loss_csv_path, "w") as f:
+            f.write("step,current_loss,avr_loss\n")
+        network_trainer.loss_csv_path = loss_csv_path
+        logger.info(f"Loss CSV: {loss_csv_path}")
+
         epochs_count = network_trainer.num_train_epochs
 
         trainer = {

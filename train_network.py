@@ -1308,6 +1308,9 @@ class NetworkTrainer:
                 current_loss = loss.detach().item()
                 self.loss_recorder.add(epoch=epoch, step=step, global_step=self.global_step, loss=current_loss)
                 avr_loss: float = self.loss_recorder.moving_average
+                if getattr(self, "loss_csv_path", None):
+                    with open(self.loss_csv_path, "a") as _f:
+                        _f.write(f"{self.global_step},{current_loss:.6f},{avr_loss:.6f}\n")
                 logs = {"avr_loss": avr_loss}  # , "lr": lr_scheduler.get_last_lr()[0]}
                 progress_bar.set_postfix(**logs)
 
