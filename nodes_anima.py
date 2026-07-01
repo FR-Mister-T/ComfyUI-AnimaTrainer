@@ -991,6 +991,186 @@ class AnimaLLLiteTrainEnd:
         return (final_name, metadata, final_path)
 
 
+
+# ---------------------------------------------------------------------------
+# Inference nodes: AnimaLLLiteLoader + ApplyAnimaLLLite
+# ---------------------------------------------------------------------------
+
+class _LLLiteLinearWrapper(torch.nn.Module):
+    """Replaces a Linear in the DiT so LLLite correction runs through add_object_patch."""
+
+    def __init__(self, orig_linear, lllite_module):
+        super().__init__()
+        self.orig_linear = orig_linear   # registered → moves with model to device
+        self.lllite = lllite_module      # registered → moves with model to device
+        lllite_module.org_forward = orig_linear.forward
+
+    def forward(self, x):
+        return self.lllite(x)
+
+    # Property delegation so downstream code that inspects the Linear still works
+    @property
+    def weight(self): return self.orig_linear.weight
+    @property
+    def bias(self): return self.orig_linear.bias
+    @property
+    def in_features(self): return self.orig_linear.in_features
+    @property
+    def out_features(self): return self.orig_linear.out_features
+
+
+class AnimaLLLiteLoader:
+    """Load an Anima ControlNet-LLLite checkpoint (from models/controlnet/ or models/loras/)."""
+
+    @classmethod
+    def INPUT_TYPES(s):
+        cn_files = folder_paths.get_filename_list("controlnet")
+        lora_files = folder_paths.get_filename_list("loras")
+        all_files = cn_files + [f"[loras] {f}" for f in lora_files]
+        return {
+            "required": {
+                "lllite_name": (all_files,),
+                "strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
+                                       "tooltip": "LLLite effect strength (1.0 = trained value)"}),
+            }
+        }
+
+    RETURN_TYPES = ("ANIMA_LLLITE",)
+    RETURN_NAMES = ("anima_lllite",)
+    FUNCTION = "load"
+    CATEGORY = "FluxTrainer/Anima"
+
+    def load(self, lllite_name, strength):
+        if lllite_name.startswith("[loras] "):
+            actual_name = lllite_name[len("[loras] "):]
+            path = folder_paths.get_full_path("loras", actual_name)
+        else:
+            path = folder_paths.get_full_path("controlnet", lllite_name)
+
+        if path is None or not os.path.isfile(path):
+            raise FileNotFoundError(f"AnimaLLLiteLoader: model not found: {lllite_name}")
+
+        metadata = {}
+        if path.endswith(".safetensors"):
+            try:
+                from safetensors import safe_open
+                with safe_open(path, framework="pt") as f:
+                    metadata = dict(f.metadata() or {})
+            except Exception as e:
+                logger.warning(f"Could not read safetensors metadata from {path}: {e}")
+
+        logger.info(f"AnimaLLLiteLoader: loaded metadata from {path}: {metadata}")
+        return ({"path": path, "metadata": metadata, "strength": strength},)
+
+
+class ApplyAnimaLLLite:
+    """Apply Anima ControlNet-LLLite to a MODEL using a preprocessed control image."""
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "model": ("MODEL",),
+                "anima_lllite": ("ANIMA_LLLITE",),
+                "control_image": ("IMAGE",
+                                  {"tooltip": "Preprocessed control image at output resolution "
+                                              "(e.g. from CannyEdgePreprocessor). "
+                                              "Must match generation W×H."}),
+            },
+            "optional": {
+                "strength": ("FLOAT", {"default": -1.0, "min": -1.0, "max": 2.0, "step": 0.05,
+                                       "tooltip": "Override loader strength (-1 = use loader value)"}),
+            }
+        }
+
+    RETURN_TYPES = ("MODEL",)
+    FUNCTION = "apply"
+    CATEGORY = "FluxTrainer/Anima"
+
+    def apply(self, model, anima_lllite, control_image, strength=-1.0):
+        from .networks.control_net_lllite_anima import (
+            ControlNetLLLiteDiT,
+            load_lllite_weights,
+            TARGET_ATTENTION_CLASS,
+            TARGET_MLP_CLASS,
+            LLM_ADAPTER_NAME,
+        )
+
+        effective_strength = anima_lllite["strength"] if strength < 0 else strength
+        metadata = anima_lllite["metadata"]
+
+        cond_emb_dim   = int(metadata.get("lllite.cond_emb_dim", 32))
+        mlp_dim        = int(metadata.get("lllite.mlp_dim", 64))
+        target_layers  = metadata.get("lllite.target_layers", "self_attn_q")
+        cond_dim       = int(metadata.get("lllite.cond_dim", 64))
+        cond_resblocks = int(metadata.get("lllite.cond_resblocks", 1))
+        use_aspp       = metadata.get("lllite.use_aspp", "false").lower() == "true"
+
+        m = model.clone()
+        dit = m.model.diffusion_model
+
+        lllite = ControlNetLLLiteDiT(
+            dit,
+            cond_emb_dim=cond_emb_dim,
+            mlp_dim=mlp_dim,
+            target_layers=target_layers,
+            cond_dim=cond_dim,
+            cond_resblocks=cond_resblocks,
+            use_aspp=use_aspp,
+            multiplier=effective_strength,
+        )
+        load_lllite_weights(lllite, anima_lllite["path"])
+
+        # Control image: ComfyUI IMAGE is (B,H,W,C) float32 [0,1] → need (B,C,H,W)
+        cond_img = control_image.permute(0, 3, 1, 2)
+
+        # Move lllite to CPU first (will be loaded to GPU by ComfyUI's patch_model)
+        lllite = lllite.cpu()
+        cond_img = cond_img.cpu()
+        lllite.set_cond_image(cond_img)
+
+        # Build id→path map for target Linears in the DiT
+        module_paths: dict = {}
+        for name, module in dit.named_modules():
+            if LLM_ADAPTER_NAME in name:
+                continue
+            cls = module.__class__.__name__
+            if cls == TARGET_ATTENTION_CLASS and hasattr(module, "is_selfattn"):
+                for child_name, child in module.named_children():
+                    if isinstance(child, torch.nn.Linear) and "output_proj" not in child_name:
+                        module_paths[id(child)] = f"diffusion_model.{name}.{child_name}"
+            elif cls == TARGET_MLP_CLASS:
+                child = getattr(module, "layer1", None)
+                if isinstance(child, torch.nn.Linear):
+                    module_paths[id(child)] = f"diffusion_model.{name}.layer1"
+
+        # Register each LLLite module as an object patch
+        patches_applied = 0
+        for lm in lllite.lllite_modules:
+            orig_linear = lm.org_module[0]
+            path = module_paths.get(id(orig_linear))
+            if path is None:
+                logger.warning(f"ApplyAnimaLLLite: could not find DiT path for {lm.lllite_name}")
+                continue
+            wrapper = _LLLiteLinearWrapper(orig_linear, lm)
+            m.add_object_patch(path, wrapper)
+            patches_applied += 1
+
+        if patches_applied == 0:
+            raise RuntimeError(
+                "ApplyAnimaLLLite: no modules were patched. "
+                "Verify the LLLite checkpoint matches the loaded Anima model."
+            )
+
+        logger.info(f"ApplyAnimaLLLite: applied {patches_applied} LLLite patches "
+                    f"(target_layers={target_layers!r}, strength={effective_strength})")
+
+        # Keep lllite alive (prevent GC) and store cond_img for reference
+        m.model_options.setdefault("anima_lllite_objects", []).append(lllite)
+
+        return (m,)
+
+
 NODE_CLASS_MAPPINGS = {
     "AnimaModelSelect": AnimaModelSelect,
     "InitAnimaLoRATraining": InitAnimaLoRATraining,
@@ -1002,6 +1182,8 @@ NODE_CLASS_MAPPINGS = {
     "InitAnimaLLLiteTraining": InitAnimaLLLiteTraining,
     "AnimaLLLiteTrainSave": AnimaLLLiteTrainSave,
     "AnimaLLLiteTrainEnd": AnimaLLLiteTrainEnd,
+    "AnimaLLLiteLoader": AnimaLLLiteLoader,
+    "ApplyAnimaLLLite": ApplyAnimaLLLite,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -1015,4 +1197,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "InitAnimaLLLiteTraining": "Init Anima LLLite Training",
     "AnimaLLLiteTrainSave": "Anima LLLite Train Save",
     "AnimaLLLiteTrainEnd": "Anima LLLite Train End",
+    "AnimaLLLiteLoader": "Anima LLLite Loader",
+    "ApplyAnimaLLLite": "Apply Anima LLLite",
 }

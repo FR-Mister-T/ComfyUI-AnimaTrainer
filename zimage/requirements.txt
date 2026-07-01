@@ -1,0 +1,5 @@
+diffsynth>=2.0.12
+accelerate>=0.34.0
+peft>=0.12.0
+pandas>=2.0.0
+huggingface_hub>=0.24.0

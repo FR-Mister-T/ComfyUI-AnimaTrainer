@@ -23,4 +23,12 @@ try:
 except Exception as e:
     logging.getLogger(__name__).warning(f"LTX training nodes failed to load: {e}")
 
+try:
+    from .zimage import NODE_CLASS_MAPPINGS as NODE_CLASS_MAPPINGS_ZIMAGE
+    from .zimage import NODE_DISPLAY_NAME_MAPPINGS as NODE_DISPLAY_NAME_MAPPINGS_ZIMAGE
+    NODE_CLASS_MAPPINGS.update(NODE_CLASS_MAPPINGS_ZIMAGE)
+    NODE_DISPLAY_NAME_MAPPINGS.update(NODE_DISPLAY_NAME_MAPPINGS_ZIMAGE)
+except Exception as e:
+    logging.getLogger(__name__).warning(f"Z-Image training nodes failed to load: {e}")
+
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]

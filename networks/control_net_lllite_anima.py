@@ -260,6 +260,9 @@ class LLLiteModuleDiT(nn.Module):
             x = x.reshape(B, T * H * W, D)
 
         cx = self.cond_emb  # (B, H*W, cond_emb_dim)
+        # Align device/dtype with x (cond_emb may have been computed on a different device)
+        if cx.device != x.device or cx.dtype != x.dtype:
+            cx = cx.to(device=x.device, dtype=x.dtype)
 
         # CFG 推論用 (学習時は通らない想定)
         if x.shape[0] // 2 == cx.shape[0]:

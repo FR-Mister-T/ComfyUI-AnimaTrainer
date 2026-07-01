@@ -381,6 +381,7 @@ class LatentsCachingStrategy:
     # TODO commonize utillity functions to this class, such as npz handling etc.
 
     _strategy = None  # strategy instance: actual strategy class
+    _warned_fallback_to_old_npz = False  # to avoid spamming logs about fallback
 
     def __init__(self, cache_to_disk: bool, batch_size: int, skip_disk_cache_validity_check: bool) -> None:
         self._cache_to_disk = cache_to_disk
@@ -447,11 +448,12 @@ class LatentsCachingStrategy:
 
         try:
             npz = np.load(npz_path)
-            if "latents" + key_reso_suffix not in npz:
+            # check for suffixed key first; also accept unsuffixed key for backward compat with old SD/SDXL npz files
+            if "latents" + key_reso_suffix not in npz and "latents" not in npz:
                 return False
-            if flip_aug and "latents_flipped" + key_reso_suffix not in npz:
+            if flip_aug and ("latents_flipped" + key_reso_suffix not in npz and "latents_flipped" not in npz):
                 return False
-            if alpha_mask and "alpha_mask" + key_reso_suffix not in npz:
+            if alpha_mask and ("alpha_mask" + key_reso_suffix not in npz and "alpha_mask" not in npz):
                 return False
         except Exception as e:
             logger.error(f"Error loading file: {npz_path}")
@@ -499,7 +501,7 @@ class LatentsCachingStrategy:
             original_size = original_sizes[i]
             crop_ltrb = crop_ltrbs[i]
 
-            latents_size = latents.shape[1:3]  # H, W
+            latents_size = latents.shape[-2:]  # H, W (supports both 4D and 5D latents)
             key_reso_suffix = f"_{latents_size[0]}x{latents_size[1]}" if multi_resolution else ""  # e.g. "_32x64", HxW
 
             if self.cache_to_disk:
@@ -533,7 +535,16 @@ class LatentsCachingStrategy:
 
         npz = np.load(npz_path)
         if "latents" + key_reso_suffix not in npz:
-            raise ValueError(f"latents{key_reso_suffix} not found in {npz_path}")
+            # Fallback to old npz without resolution suffix (backward compat with pre-multi-resolution caches)
+            if "latents" not in npz:
+                raise ValueError(f"latents not found in {npz_path} (neither with suffix {key_reso_suffix!r} nor without)")
+            if not self._warned_fallback_to_old_npz:
+                logger.warning(
+                    f"latents{key_reso_suffix} not found in {npz_path}. Falling back to latents without resolution suffix"
+                    " (old npz). This warning will only be shown once. Re-cache latents to suppress it."
+                )
+                self._warned_fallback_to_old_npz = True
+            key_reso_suffix = ""
 
         latents = npz["latents" + key_reso_suffix]
         original_size = npz["original_size" + key_reso_suffix].tolist()
